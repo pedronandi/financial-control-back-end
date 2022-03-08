@@ -9,6 +9,5 @@ import org.mapstruct.Mapping;
 public interface RevenueMapper {
 
     @Mapping(target = "category.id", source = "categoryId")
-    @Mapping(target = "user.id", source = "userId")
     RevenueModel toModel(RevenueDto revenueDto);
 }
