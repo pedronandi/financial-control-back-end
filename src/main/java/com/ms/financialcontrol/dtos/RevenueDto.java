@@ -9,6 +9,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 public class RevenueDto {
@@ -26,5 +27,5 @@ public class RevenueDto {
 
     @NotNull
     @NumberFormat
-    private Long categoryId;
+    private UUID categoryId;
 }

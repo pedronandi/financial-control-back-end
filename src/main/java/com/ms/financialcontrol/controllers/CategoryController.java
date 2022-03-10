@@ -1,10 +1,13 @@
 package com.ms.financialcontrol.controllers;
 
 import com.ms.financialcontrol.dtos.CategoryDto;
+import com.ms.financialcontrol.exceptions.CategoryNotFoundException;
 import com.ms.financialcontrol.models.CategoryModel;
 import com.ms.financialcontrol.services.CategoryService;
 import lombok.AllArgsConstructor;
 import lombok.var;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -32,6 +35,8 @@ import java.util.Optional;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final Logger logger = LoggerFactory.getLogger(RevenueController.class);
+    private static final String CATEGORY_FOUND = "category {} found";
 
     @PostMapping
     public ResponseEntity<Object> saveCategory(@RequestBody @Valid CategoryDto categoryDto) {
@@ -43,6 +48,7 @@ public class CategoryController {
 
         var categoryModel = new CategoryModel();
         BeanUtils.copyProperties(categoryDto, categoryModel);
+        logger.debug("categoryModel mapped");
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.saveCategory(categoryModel));
     }
 
@@ -52,39 +58,28 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object> getCategoryById(@PathVariable(value = "id") Long id) {
-        Optional<CategoryModel> categoryOptional = categoryService.findById(id);
-
-        if (!categoryOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Category id %d not found!", id));
-        }
-
-        return ResponseEntity.status(HttpStatus.OK).body(categoryOptional.get());
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Object> deleteCategory(@PathVariable(value = "id") Long id) {
-        Optional<CategoryModel> categoryOptional = categoryService.findById(id);
-
-        if (!categoryOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Category id %d not found!", id));
-        }
-
-        categoryService.delete(categoryOptional.get());
-        return ResponseEntity.status(HttpStatus.OK).body(String.format("Category id %d deleted successfully!", id));
+    public ResponseEntity<Object> getCategoryById(@PathVariable(value = "id") UUID id) {
+        CategoryModel categoryRequest = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        logger.debug(CATEGORY_FOUND, categoryRequest.getName());
+        return ResponseEntity.status(HttpStatus.OK).body(categoryRequest);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Object> updateCategory(@PathVariable(value = "id") Long id, @RequestBody @Valid CategoryDto categoryDto) {
-        Optional<CategoryModel> categoryOptional = categoryService.findById(id);
-
-        if (!categoryOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Category id %d not found!", id));
-        }
-
+    public ResponseEntity<Object> updateCategory(@PathVariable(value = "id") UUID id, @RequestBody @Valid CategoryDto categoryDto) {
+        CategoryModel categoryRequest = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        logger.debug(CATEGORY_FOUND, categoryRequest.getName());
         var categoryModel = new CategoryModel();
         BeanUtils.copyProperties(categoryDto, categoryModel);
-        categoryModel.setId(id);
+        logger.debug("categoryModel mapped");
+        categoryModel.setId(categoryRequest.getId());
         return ResponseEntity.status(HttpStatus.OK).body(categoryService.saveCategory(categoryModel));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Object> deleteCategory(@PathVariable(value = "id") UUID id) {
+        CategoryModel categoryModel = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        logger.debug(CATEGORY_FOUND, categoryModel.getName());
+        categoryService.delete(categoryModel);
+        return ResponseEntity.status(HttpStatus.OK).body(String.format("Category id %s deleted successfully!", id));
     }
 }

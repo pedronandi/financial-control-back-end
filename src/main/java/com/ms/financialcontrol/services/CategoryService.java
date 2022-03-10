@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -29,7 +30,7 @@ public class CategoryService {
         return categoryRepository.findAll(pageable);
     }
 
-    public Optional<CategoryModel> findById(Long id) {
+    public Optional<CategoryModel> findById(UUID id) {
         return categoryRepository.findById(id);
     }
 

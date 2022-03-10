@@ -1,5 +1,6 @@
 package com.ms.financialcontrol.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import javax.persistence.Entity;
@@ -11,6 +12,7 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "category")
@@ -21,10 +23,11 @@ public class CategoryModel implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+    private UUID id;
 
     private String name;
 
+    @JsonIgnore
     @OneToMany
     @JoinColumn(name = "category_id")
     private List<RevenueModel> revenues;

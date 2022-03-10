@@ -5,6 +5,8 @@ import com.ms.financialcontrol.mappers.RevenueMapper;
 import com.ms.financialcontrol.models.RevenueModel;
 import com.ms.financialcontrol.services.RevenueService;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -32,10 +35,12 @@ public class RevenueController {
 
     private final RevenueMapper revenueMapper;
     private final RevenueService revenueService;
+    private final Logger logger = LoggerFactory.getLogger(RevenueController.class);
 
     @PostMapping
     public ResponseEntity<Object> saveRevenue(@RequestBody @Valid RevenueDto revenueDto) {
         RevenueModel revenueModel = revenueMapper.toModel(revenueDto);
+        logger.debug("revenueModel mapped");
         return ResponseEntity.status(HttpStatus.CREATED).body(revenueService.saveRevenue(revenueModel));
     }
 
@@ -45,38 +50,38 @@ public class RevenueController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Object> getRevenueById(@PathVariable(value = "id") Long id) {
+    public ResponseEntity<Object> getRevenueById(@PathVariable(value = "id") UUID id) {
         Optional<RevenueModel> revenueOptional = revenueService.findById(id);
 
         if(!revenueOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %d not found!", id));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %s not found!", id));
         }
 
         return ResponseEntity.status(HttpStatus.OK).body(revenueOptional.get());
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Object> deleteRevenue(@PathVariable(value = "id") Long id) {
-        Optional<RevenueModel> revenueOptional = revenueService.findById(id);
-
-        if(!revenueOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %d not found!", id));
-        }
-
-        revenueService.delete(revenueOptional.get());
-        return ResponseEntity.status(HttpStatus.OK).body(String.format("Revenue id %d deleted successfully!", id));
-    }
-
     @PutMapping("/{id}")
-    public ResponseEntity<Object> updateCategory(@PathVariable(value = "id") Long id, @RequestBody @Valid RevenueDto revenueDto) {
+    public ResponseEntity<Object> updateRevenue(@PathVariable(value = "id") UUID id, @RequestBody @Valid RevenueDto revenueDto) {
         Optional<RevenueModel> revenueOptional = revenueService.findById(id);
 
         if(!revenueOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %d not found!", id));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %s not found!", id));
         }
 
         RevenueModel revenueModel = revenueMapper.toModel(revenueDto);
         revenueModel.setId(id);
         return ResponseEntity.status(HttpStatus.OK).body(revenueService.saveRevenue(revenueModel));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Object> deleteRevenue(@PathVariable(value = "id") UUID id) {
+        Optional<RevenueModel> revenueOptional = revenueService.findById(id);
+
+        if(!revenueOptional.isPresent()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(String.format("Revenue id %s not found!", id));
+        }
+
+        revenueService.delete(revenueOptional.get());
+        return ResponseEntity.status(HttpStatus.OK).body(String.format("Revenue id %s deleted successfully!", id));
     }
 }

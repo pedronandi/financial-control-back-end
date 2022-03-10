@@ -5,9 +5,9 @@ import com.ms.financialcontrol.models.RevenueModel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface RevenueMapper {
 
-    @Mapping(target = "category.id", source = "categoryId")
+    @Mapping(source = "categoryId", target = "category.id")
     RevenueModel toModel(RevenueDto revenueDto);
 }
