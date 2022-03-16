@@ -5,9 +5,8 @@ import com.ms.financialcontrol.exceptions.CategoryNotFoundException;
 import com.ms.financialcontrol.models.CategoryModel;
 import com.ms.financialcontrol.services.CategoryService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.var;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,25 +29,20 @@ import java.util.UUID;
 
 @RestController
 @CrossOrigin(origins = "*", maxAge = 3600)
+@Slf4j
 @AllArgsConstructor
 @RequestMapping("/category")
 public class CategoryController {
 
     private final CategoryService categoryService;
-    private final Logger logger = LoggerFactory.getLogger(RevenueController.class);
     private static final String CATEGORY_FOUND = "category {} found";
 
     @PostMapping
     public ResponseEntity<Object> saveCategory(@RequestBody @Valid CategoryDto categoryDto) {
-        if(categoryService.existsByName(categoryDto.getName())) {
-            return ResponseEntity
-                    .status(HttpStatus.CONFLICT)
-                    .body(String.format("Conflict: Name %s is already in use!", categoryDto.getName()));
-        }
-
         var categoryModel = new CategoryModel();
         BeanUtils.copyProperties(categoryDto, categoryModel);
-        logger.debug("categoryModel mapped");
+        log.debug("categoryModel mapped");
+
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.saveCategory(categoryModel));
     }
 
@@ -60,26 +54,35 @@ public class CategoryController {
     @GetMapping("/{id}")
     public ResponseEntity<Object> getCategoryById(@PathVariable(value = "id") UUID id) {
         CategoryModel categoryRequest = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
-        logger.debug(CATEGORY_FOUND, categoryRequest.getName());
+        log.debug(CATEGORY_FOUND, categoryRequest.getName());
+
         return ResponseEntity.status(HttpStatus.OK).body(categoryRequest);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Object> updateCategory(@PathVariable(value = "id") UUID id, @RequestBody @Valid CategoryDto categoryDto) {
-        CategoryModel categoryRequest = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
-        logger.debug(CATEGORY_FOUND, categoryRequest.getName());
+        if(!categoryService.existsById(id)) {
+            throw new CategoryNotFoundException(id);
+        }
+
+        log.debug(CATEGORY_FOUND, id);
+
         var categoryModel = new CategoryModel();
         BeanUtils.copyProperties(categoryDto, categoryModel);
-        logger.debug("categoryModel mapped");
-        categoryModel.setId(categoryRequest.getId());
+        log.debug("categoryModel mapped");
+
+        categoryModel.setId(id);
+
         return ResponseEntity.status(HttpStatus.OK).body(categoryService.saveCategory(categoryModel));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> deleteCategory(@PathVariable(value = "id") UUID id) {
         CategoryModel categoryModel = categoryService.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
-        logger.debug(CATEGORY_FOUND, categoryModel.getName());
+        log.debug(CATEGORY_FOUND, categoryModel.getName());
+
         categoryService.delete(categoryModel);
+
         return ResponseEntity.status(HttpStatus.OK).body(String.format("Category id %s deleted successfully!", id));
     }
 }

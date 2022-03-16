@@ -1,5 +1,6 @@
 package com.ms.financialcontrol.services;
 
+import com.ms.financialcontrol.exceptions.CategoryConflictException;
 import com.ms.financialcontrol.models.CategoryModel;
 import com.ms.financialcontrol.repositories.CategoryRepository;
 import lombok.AllArgsConstructor;
@@ -17,12 +18,14 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public boolean existsByName(String name) {
-        return categoryRepository.existsByName(name);
-    }
+    public boolean existsById(UUID id) { return categoryRepository.existsById(id); }
 
     @Transactional
     public CategoryModel saveCategory(CategoryModel categoryModel) {
+        if(categoryRepository.existsByName(categoryModel.getName())) {
+            throw new CategoryConflictException(categoryModel.getName());
+        }
+
         return categoryRepository.save(categoryModel);
     }
 

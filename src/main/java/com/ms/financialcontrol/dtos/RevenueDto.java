@@ -1,7 +1,6 @@
 package com.ms.financialcontrol.dtos;
 
 import lombok.Data;
-import org.springframework.format.annotation.NumberFormat;
 
 import javax.validation.constraints.Digits;
 import javax.validation.constraints.NotBlank;
@@ -14,18 +13,17 @@ import java.util.UUID;
 @Data
 public class RevenueDto {
 
-    @NotBlank
+    @NotBlank(message = "Description is mandatory")
     private String description;
 
-    @NotNull
-    @Digits(integer = 5, fraction = 2)
-    @Positive
+    @NotNull(message = "Amount is mandatory")
+    @Digits(integer = 6, fraction = 2, message = "Amount must have, at max, {integer} integers and {fraction} decimals")
+    @Positive(message = "Amount must be positive")
     private BigDecimal amount;
 
-    @NotNull
+    @NotNull(message = "Date is mandatory and must have to follow UTC format")
     private LocalDate date;
 
-    @NotNull
-    @NumberFormat
+    @NotNull(message = "Category id is mandatory")
     private UUID categoryId;
 }
