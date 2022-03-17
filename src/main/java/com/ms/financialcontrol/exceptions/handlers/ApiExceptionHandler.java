@@ -1,16 +1,20 @@
 package com.ms.financialcontrol.exceptions.handlers;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.PropertyBindingException;
 import com.ms.financialcontrol.exceptions.ConflictException;
 import com.ms.financialcontrol.exceptions.EntityNotFoundException;
-import com.sun.istack.Nullable;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.lang.Nullable;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,6 +24,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,24 +45,28 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemType problemType = ProblemType.INVALID_DATA;
         String detail = "There is invalid data. Fill the data correctly and try again";
         List<ObjectError> allErrors = exception.getBindingResult().getAllErrors();
-        List<Problem.Object> problemObjects = allErrors
-                .stream()
-                .map(objectError -> {
-                    String message = messageSource.getMessage(objectError, LocaleContextHolder.getLocale());
-                    String name = objectError.getObjectName();
-
-                    if (objectError instanceof FieldError) {
-                        name = ((FieldError) objectError).getField();
-                    }
-
-                    return Problem.Object.builder()
-                            .name(name)
-                            .userMessage(message)
-                            .build();
-                })
-                .collect(Collectors.toList());
+        List<Problem.Object> problemObjects = getProblemObjectsList(allErrors);
 
         return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, problemObjects);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException exception,
+                                                                  HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
+
+        Throwable rootCause = ExceptionUtils.getRootCause(exception);
+        ProblemType problemType = ProblemType.UNREADABLE_MESSAGE;
+        String detail = "Request body is invalid. Please, check the syntax error";
+
+        if(rootCause instanceof InvalidFormatException) {
+            return handleInvalidFormat((InvalidFormatException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
+        } else if(rootCause instanceof PropertyBindingException) {
+            return handlePropertyBinding((PropertyBindingException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
+        } else if(rootCause instanceof DateTimeParseException) {
+            return handleInvalidDateFormat((DateTimeParseException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
+        }
+
+        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
     }
 
     @ExceptionHandler(Exception.class)
@@ -85,6 +94,58 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         String detail = exception.getMessage();
 
         return handleException(status, problemType, detail, exception, webRequest, HTTP_HEADERS, PROBLEM_OBJECT);
+    }
+
+    private List<Problem.Object> getProblemObjectsList(List<ObjectError> allErrors) {
+        return allErrors
+                .stream()
+                .map(objectError -> {
+                    String message = messageSource.getMessage(objectError, LocaleContextHolder.getLocale());
+                    String name = objectError.getObjectName();
+
+                    if (objectError instanceof FieldError) {
+                        name = ((FieldError) objectError).getField();
+                    }
+
+                    return Problem.Object.builder()
+                            .name(name)
+                            .userMessage(message)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    private ResponseEntity<Object> handleInvalidDateFormat(DateTimeParseException exception, ProblemType problemType,
+                                                       HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
+
+        String detail = String.format("'%s' could not be converted to UTC format", exception.getParsedString());
+
+        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
+    }
+
+    private ResponseEntity<Object> handleInvalidFormat(InvalidFormatException exception, ProblemType problemType,
+                                                       HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
+
+        String path = joinPath(exception.getPath());
+        String detail = String.format("Property '%s' is receiving invalid data '%s'. Inform valid data to %s",
+                path, exception.getValue(), exception.getTargetType().getSimpleName());
+
+        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
+    }
+
+    private ResponseEntity<Object> handlePropertyBinding(PropertyBindingException exception, ProblemType problemType,
+                                                         HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
+
+        String path = joinPath(exception.getPath());
+        String detail = String.format("Property '%s' does not exists. Adjust or remove this property and try again", path);
+
+        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
+    }
+
+    private String joinPath(List<JsonMappingException.Reference> references) {
+        return references.stream()
+                .map(JsonMappingException.Reference::getFieldName)
+                .collect(Collectors.joining("."));
     }
 
     private ResponseEntity<Object> handleException(HttpStatus httpStatus,

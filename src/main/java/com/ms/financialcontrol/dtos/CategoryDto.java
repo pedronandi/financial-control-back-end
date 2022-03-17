@@ -7,6 +7,6 @@ import javax.validation.constraints.NotBlank;
 @Data
 public class CategoryDto {
 
-    @NotBlank(message = "Name is mandatory")
+    @NotBlank(message = "{category.name.mandatory}")
     private String name;
 }

@@ -13,17 +13,17 @@ import java.util.UUID;
 @Data
 public class RevenueDto {
 
-    @NotBlank(message = "Description is mandatory")
+    @NotBlank(message = "{revenue.description.mandatory}")
     private String description;
 
-    @NotNull(message = "Amount is mandatory")
-    @Digits(integer = 6, fraction = 2, message = "Amount must have, at max, {integer} integers and {fraction} decimals")
-    @Positive(message = "Amount must be positive")
+    @NotNull(message = "{revenue.amount.mandatory}")
+    @Digits(integer = 6, fraction = 2, message = "{revenue.amount.digits-format}")
+    @Positive(message = "{revenue.amount.positive}")
     private BigDecimal amount;
 
-    @NotNull(message = "Date is mandatory and must have to follow UTC format")
+    @NotNull(message = "{revenue.date.mandatory}")
     private LocalDate date;
 
-    @NotNull(message = "Category id is mandatory")
+    @NotNull(message = "{revenue.category-id.mandatory}")
     private UUID categoryId;
 }
