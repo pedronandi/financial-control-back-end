@@ -1,23 +1,26 @@
 package com.ms.financialcontrol.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ms.financialcontrol.enums.PaymentMethodEnum;
 import lombok.Data;
 
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.OneToMany;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import java.io.Serializable;
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
-@Table(name = "category")
+@Table(name = "expense")
 @Data
-public class CategoryModel implements Serializable {
+public class ExpenseModel implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -25,15 +28,16 @@ public class CategoryModel implements Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    private String name;
+    private String description;
 
-    @JsonIgnore
-    @OneToMany
-    @JoinColumn(name = "category_id")
-    private List<RevenueModel> revenues;
+    private BigDecimal amount;
 
-    @JsonIgnore
-    @OneToMany
+    private LocalDate date;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentMethodEnum paymentMethod;
+
+    @ManyToOne
     @JoinColumn(name = "category_id")
-    private List<ExpenseModel> expenses;
+    private CategoryModel category;
 }

@@ -7,6 +7,7 @@ import com.ms.financialcontrol.exceptions.ConflictException;
 import com.ms.financialcontrol.exceptions.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -21,10 +22,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,15 +61,26 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemType problemType = ProblemType.UNREADABLE_MESSAGE;
         String detail = "Request body is invalid. Please, check the syntax error";
 
-        if(rootCause instanceof InvalidFormatException) {
+        if(rootCause instanceof DateTimeParseException) {
+            return handleInvalidDateFormat((DateTimeParseException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
+        } else if(rootCause instanceof InvalidFormatException) {
             return handleInvalidFormat((InvalidFormatException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
         } else if(rootCause instanceof PropertyBindingException) {
             return handlePropertyBinding((PropertyBindingException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
-        } else if(rootCause instanceof DateTimeParseException) {
-            return handleInvalidDateFormat((DateTimeParseException) rootCause, problemType, httpHeaders, httpStatus, webRequest);
         }
 
         return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException exception, HttpHeaders httpHeaders,
+                                                        HttpStatus httpStatus, WebRequest webRequest) {
+
+        if (exception instanceof MethodArgumentTypeMismatchException) {
+            return handleMethodArgumentTypeMismatch((MethodArgumentTypeMismatchException) exception, httpHeaders, httpStatus, webRequest);
+        }
+
+        return super.handleTypeMismatch(exception, httpHeaders, httpStatus, webRequest);
     }
 
     @ExceptionHandler(Exception.class)
@@ -118,7 +132,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private ResponseEntity<Object> handleInvalidDateFormat(DateTimeParseException exception, ProblemType problemType,
                                                        HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
 
-        String detail = String.format("'%s' could not be converted to UTC format", exception.getParsedString());
+        String detail = String.format("'%s' is not compatible with UTC format", exception.getParsedString());
 
         return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
     }
@@ -127,10 +141,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                                        HttpHeaders httpHeaders, HttpStatus httpStatus, WebRequest webRequest) {
 
         String path = joinPath(exception.getPath());
-        String detail = String.format("Property '%s' is receiving invalid data '%s'. Inform valid data to %s",
-                path, exception.getValue(), exception.getTargetType().getSimpleName());
+        StringBuilder detail = new StringBuilder(String.format("Property '%s' is receiving invalid data '%s'. Inform valid data to %s",
+                path, exception.getValue(), exception.getTargetType().getSimpleName()));
+        Object[] enumConstants = exception.getTargetType().getEnumConstants();
 
-        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
+        if(enumConstants != null) {
+            detail.append(getMessageComplementWhenEnumInvalidFormat(enumConstants));
+        }
+
+        return handleException(httpStatus, problemType, detail.toString(), exception, webRequest, httpHeaders, PROBLEM_OBJECT);
     }
 
     private ResponseEntity<Object> handlePropertyBinding(PropertyBindingException exception, ProblemType problemType,
@@ -146,6 +165,25 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return references.stream()
                 .map(JsonMappingException.Reference::getFieldName)
                 .collect(Collectors.joining("."));
+    }
+
+    private String getMessageComplementWhenEnumInvalidFormat(Object[] enumConstants) {
+        return String.format(": %s", Arrays
+                .stream(enumConstants)
+                .map(Object::toString)
+                .collect(Collectors.toList())
+                .toString());
+    }
+
+    private ResponseEntity<Object> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception, HttpHeaders httpHeaders,
+            HttpStatus httpStatus, WebRequest webRequest) {
+
+        ProblemType problemType = ProblemType.INVALID_PARAM;
+        String detail = String.format("URL param '%s' is receiving invalid data '%s'. Inform valid data to %s",
+                exception.getName(), exception.getValue(), exception.getRequiredType().getSimpleName());
+
+        return handleException(httpStatus, problemType, detail, exception, webRequest, httpHeaders, PROBLEM_OBJECT);
     }
 
     private ResponseEntity<Object> handleException(HttpStatus httpStatus,
