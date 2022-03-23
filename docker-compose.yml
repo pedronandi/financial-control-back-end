@@ -1,0 +1,26 @@
+version: "3.7"
+services:
+  pgadmin4:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=
+      - PGADMIN_DEFAULT_PASSWORD=
+    ports:
+      - "89:80"
+    networks:
+      - postgres-network
+  postgres:
+    image: postgres:10
+    container_name: postgres10_container
+    environment:
+      - POSTGRES_PASSWORD=
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres-network
+    volumes:
+      - /home/mtuser/Documents/Pedro/Jujuba/data/postgres:/var/lib/postgresql/data
+networks:
+  postgres-network:
+    driver: bridge
